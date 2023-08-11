@@ -1,208 +1,171 @@
-
 export default class EventsEmitter {
+    constructor() {
+        this._events = {}
+    }
+    /**
+     * Supports multiple events space-separated
+     * @param {string} events 
+     * @param {Function} fct 
+     * @returns 
+     */
+    on(events, fct) {
+        events.split(' ').forEach((event) => {
 
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  constructor () {
+            this._events[event] = this._events[event] || [];
+            this._events[event].push(fct);
+        })
 
-    this._events = {}
-  }
+        return this
+    }
+    /**
+     * Supports multiple events space-separated
+     * @param {string} events 
+     * @param {Function} fct 
+     * @returns 
+     */
+    off(events, fct) {
+        if (events == undefined) {
+            this._events = {};
+            return;
+        }
 
-  ///////////////////////////////////////////////////////////////////
-  // Supports multiple events space-separated
-  //
-  ///////////////////////////////////////////////////////////////////
-  on (events, fct) {
+        events.split(' ').forEach((event) => {
 
-    events.split(' ').forEach((event) => {
+            if (event in this._events === false)
+                return;
 
-      this._events[event] = this._events[event]	|| [];
-      this._events[event].push(fct);
-    })
+            if (fct) {
 
-    return this
-  }
+                this._events[event].splice(
+                    this._events[event].indexOf(fct), 1)
 
-  ///////////////////////////////////////////////////////////////////
-  // Supports multiple events space-separated
-  //
-  ///////////////////////////////////////////////////////////////////
-  off (events, fct) {
+            } else {
 
-    if(events == undefined){
-      this._events = {};
-      return;
+                this._events[event] = []
+            }
+        })
+
+        return this
     }
 
-    events.split(' ').forEach((event) => {
+    emit(event /* , args... */) {
+        if (this._events[event] === undefined)
+            return;
 
-      if (event in this._events === false)
-        return;
+        var tmpArray = this._events[event].slice();
 
-      if (fct) {
+        for (var i = 0; i < tmpArray.length; ++i) {
 
-        this._events[event].splice(
-          this._events[event].indexOf(fct), 1)
+            var result = tmpArray[i].apply(this,
+                Array.prototype.slice.call(arguments, 1));
 
-      } else {
+            if (result !== undefined)
+                return result;
+        }
 
-        this._events[event] = []
-      }
-    })
-
-    return this
-  }
-
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  emit (event /* , args... */) {
-
-    if(this._events[event] === undefined)
-      return;
-
-    var tmpArray = this._events[event].slice();
-
-    for(var i = 0; i < tmpArray.length; ++i) {
-
-      var result	= tmpArray[i].apply(this,
-        Array.prototype.slice.call(arguments, 1));
-
-      if(result !== undefined )
-        return result;
+        return undefined;
     }
 
-    return undefined;
-  }
+    guid(format = 'xxxxxxxxxxxx') {
 
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  guid(format='xxxxxxxxxxxx') {
+        var d = new Date().getTime();
 
-    var d = new Date().getTime();
+        var guid = format.replace(
+            /[xy]/g,
+            function (c) {
+                var r = (d + Math.random() * 16) % 16 | 0;
+                d = Math.floor(d / 16);
+                return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
+            });
 
-    var guid = format.replace(
-      /[xy]/g,
-      function (c) {
-        var r = (d + Math.random() * 16) % 16 | 0;
-        d = Math.floor(d / 16);
-        return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
-      });
-
-    return guid;
-  }
+        return guid;
+    }
 }
 
-
-///////////////////////////////////////////////////////////////////
-//
-//
-///////////////////////////////////////////////////////////////////
 export const EventsEmitterComposer =
-  (BaseClass) => class extends BaseClass {
+    (BaseClass) => class extends BaseClass {
+        constructor(arg1, arg2, arg3, arg4, arg5) {
+            super(arg1, arg2, arg3, arg4, arg5)
+            this._events = {};
+        }
+        /**
+         * Supports multiple events space-separated
+         * @param {string} events 
+         * @param {Function} fct 
+         * @returns 
+         */
+        on(events, fct) {
+            events.split(' ').forEach((event) => {
 
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  constructor (arg1, arg2, arg3, arg4, arg5) {
+                this._events[event] = this._events[event] || [];
+                this._events[event].push(fct);
+            })
 
-    super (arg1, arg2, arg3, arg4, arg5)
+            return this
+        }
+        /**
+         * Supports multiple events space-separated
+         * @param {string} events 
+         * @param {Function} fct 
+         * @returns 
+         */
+        off(events, fct) {
+            if (events == undefined) {
+                this._events = {};
+                return;
+            }
 
-    this._events = {};
-  }
+            events.split(' ').forEach((event) => {
 
-  ///////////////////////////////////////////////////////////////////
-  // Supports multiple events space-separated
-  //
-  ///////////////////////////////////////////////////////////////////
-  on (events, fct) {
+                if (event in this._events === false)
+                    return;
 
-    events.split(' ').forEach((event) => {
+                if (fct) {
 
-      this._events[event] = this._events[event]	|| [];
-      this._events[event].push(fct);
-    })
+                    this._events[event].splice(
+                        this._events[event].indexOf(fct), 1)
 
-    return this
-  }
+                } else {
 
-  ///////////////////////////////////////////////////////////////////
-  // Supports multiple events space-separated
-  //
-  ///////////////////////////////////////////////////////////////////
-  off (events, fct) {
+                    this._events[event] = []
+                }
+            })
 
-    if(events == undefined){
-      this._events = {};
-      return;
+            return this
+        }
+
+        emit(event /* , args... */) {
+            if (this._events[event] === undefined)
+                return;
+
+            var tmpArray = this._events[event].slice();
+
+            for (var i = 0; i < tmpArray.length; ++i) {
+
+                var result = tmpArray[i].apply(this,
+                    Array.prototype.slice.call(arguments, 1));
+
+                if (result !== undefined)
+                    return result;
+            }
+
+            return undefined;
+        }
+
+        guid(format = 'xxxxxxxxxxxx') {
+
+            var d = new Date().getTime();
+
+            var guid = format.replace(
+                /[xy]/g,
+                function (c) {
+                    var r = (d + Math.random() * 16) % 16 | 0;
+                    d = Math.floor(d / 16);
+                    return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
+                });
+
+            return guid
+        }
     }
-
-    events.split(' ').forEach((event) => {
-
-      if (event in this._events === false)
-        return;
-
-      if (fct) {
-
-        this._events[event].splice(
-          this._events[event].indexOf(fct), 1)
-
-      } else {
-
-        this._events[event] = []
-      }
-    })
-
-    return this
-  }
-
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  emit (event /* , args... */) {
-
-    if(this._events[event] === undefined)
-      return;
-
-    var tmpArray = this._events[event].slice();
-
-    for(var i = 0; i < tmpArray.length; ++i) {
-
-      var result	= tmpArray[i].apply(this,
-        Array.prototype.slice.call(arguments, 1));
-
-      if(result !== undefined )
-        return result;
-    }
-
-    return undefined;
-  }
-
-  ///////////////////////////////////////////////////////////////////
-  //
-  //
-  ///////////////////////////////////////////////////////////////////
-  guid(format='xxxxxxxxxxxx') {
-
-    var d = new Date().getTime();
-
-    var guid = format.replace(
-      /[xy]/g,
-      function (c) {
-        var r = (d + Math.random() * 16) % 16 | 0;
-        d = Math.floor(d / 16);
-        return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
-      });
-
-    return guid
-  }
-}
 
 
