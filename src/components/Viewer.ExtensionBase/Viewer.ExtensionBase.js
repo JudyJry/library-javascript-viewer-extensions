@@ -3,7 +3,7 @@
 //
 //
 ///////////////////////////////////////////////////////////////////////////////
-import EventsEmitter from 'EventsEmitter'
+import EventsEmitter from '../EventsEmitter'
 
 export default class ExtensionBase extends
   EventsEmitter.Composer (Autodesk.Viewing.Extension) {

@@ -1,4 +1,4 @@
-import EventsEmitter from 'EventsEmitter'
+import EventsEmitter from '../components/EventsEmitter'
 
 export default class RotateTool extends EventsEmitter {
 
