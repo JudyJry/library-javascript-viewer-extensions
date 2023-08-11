@@ -199,6 +199,29 @@ export default class ViewerToolkit {
             }
         });
     }
+    /**
+     * get bounding box by dbId
+     * @param {number} dbId 
+     * @param {*?} model 
+     * @returns {THREE.Box3} BoundingBox
+     */
+    static getBoundingBox(dbId, model) {
+        let _model = model
+        if (!_model) {
+            _model = viewer.model
+        }
+        const it = _model.getInstanceTree();
+        const fragList = _model.getFragmentList();
+        let bounds = new THREE.Box3();
+
+        it.enumNodeFragments(dbId, (fragId) => {
+            let box = new THREE.Box3();
+            fragList.getWorldBounds(fragId, box);
+            bounds.union(box);
+        }, true);
+
+        return bounds;
+    }
 
     /**
      * Gets properties from component

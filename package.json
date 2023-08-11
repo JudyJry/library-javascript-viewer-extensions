@@ -8,13 +8,12 @@
     "build-prod": "webpack --progress --config ./webpack.config.production.js"
   },
   "author": "Philippe Leefsma",
-  "dependencies": {},
   "devDependencies": {
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4",
     "@babel/core": "^7.22.10",
     "@babel/preset-env": "^7.22.10",
     "babel-loader": "^9.1.3",
-    "terser-webpack-plugin": "^5.3.9"
+    "terser-webpack-plugin": "^5.3.9",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
   }
 }
