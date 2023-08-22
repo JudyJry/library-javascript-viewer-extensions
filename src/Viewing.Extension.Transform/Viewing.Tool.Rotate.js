@@ -60,34 +60,34 @@ export default class RotateTool extends EventsEmitter {
     onAggregateSelectionChanged(event) {
         if (this.rotateControl && this.rotateControl.engaged) {
             this.rotateControl.engaged = false
-            this.viewer.select(this.selection.dbIdArray)
+            this.viewer.select(this._selection.dbIdArray)
             return
         }
 
         if (event.selections && event.selections.length) {
             var selection = event.selections[0]
-            this.selection = selection
-            this.emit('transform.modelSelected', this.selection)
+            this._selection = selection
+            this.emit('transform.modelSelected', this._selection)
 
             if (this.fullTransform) {
-                this.selection.fragIdsArray = []
+                this._selection.fragIdsArray = []
                 var fragCount = selection.model.getFragmentList().fragments.fragId2dbId.length
 
                 for (var fragId = 0; fragId < fragCount; ++fragId) {
-                    this.selection.fragIdsArray.push(fragId)
+                    this._selection.fragIdsArray.push(fragId)
                 }
 
-                this.selection.dbIdArray = []
+                this._selection.dbIdArray = []
 
                 var instanceTree = selection.model.getData().instanceTree
                 var rootId = instanceTree.getRootId()
-                this.selection.dbIdArray.push(rootId)
+                this._selection.dbIdArray.push(rootId)
             }
 
             this.drawControl()
 
-            const selectionBox = this.selection.dbIdArray.reduce((bbox, dbId) => {
-                bbox.union(ViewerToolkit.getBoundingBox(dbId, this.selection.model))
+            const selectionBox = this._selection.dbIdArray.reduce((bbox, dbId) => {
+                bbox.union(ViewerToolkit.getBoundingBox(dbId, this._selection.model))
                 return bbox
             }, new THREE.Box3())
             this.viewer.navigation.fitBounds(false, selectionBox.expandByScalar(3), true, true)
@@ -99,7 +99,7 @@ export default class RotateTool extends EventsEmitter {
     }
 
     clearSelection() {
-        this.selection = null
+        this._selection = null
         if (this.rotateControl) {
             this.rotateControl.remove()
             this.rotateControl = null
@@ -112,8 +112,8 @@ export default class RotateTool extends EventsEmitter {
      */
     drawControl() {
         var bBox = this.geWorldBoundingBox(
-            this.selection.fragIdsArray,
-            this.selection.model.getFragmentList())
+            this._selection.fragIdsArray,
+            this._selection.model.getFragmentList())
 
         this.center = bBox.getCenter()
 
@@ -130,8 +130,8 @@ export default class RotateTool extends EventsEmitter {
 
         this.rotateControl.on('transform.rotate', (data) => {
             this.rotateFragments(
-                this.selection.model,
-                this.selection.fragIdsArray,
+                this._selection.model,
+                this._selection.fragIdsArray,
                 data.axis,
                 data.angle,
                 this.center)
@@ -177,7 +177,7 @@ export default class RotateTool extends EventsEmitter {
         }
 
         if (this.isDragging) {
-            if (this.selection) {
+            if (this._selection) {
                 var offset = {
                     x: this.mousePos.x - event.clientX,
                     y: event.clientY - this.mousePos.y
@@ -214,8 +214,8 @@ export default class RotateTool extends EventsEmitter {
                 axis.crossVectors(moveDirection, eye).normalize()
 
                 this.rotateFragments(
-                    this.selection.model,
-                    this.selection.fragIdsArray,
+                    this._selection.model,
+                    this._selection.fragIdsArray,
                     axis, angle * Math.PI / 180,
                     this.center)
 
@@ -229,7 +229,6 @@ export default class RotateTool extends EventsEmitter {
     }
 
     handleKeyDown(event, keyCode) {
-        console.log(event.key)
         this.keys[event.key] = true
         return false
     }

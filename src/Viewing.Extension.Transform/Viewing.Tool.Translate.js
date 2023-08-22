@@ -5,6 +5,8 @@ import './TransformGizmos'
 export default class TransformTool extends EventsEmitter {
     constructor(viewer) {
         super()
+        this.keys = {}
+
         this.active = false
 
         this._viewer = viewer
@@ -285,6 +287,16 @@ export default class TransformTool extends EventsEmitter {
             return false
         }
         if (this._transformControlTx.onPointerHover(event)) return true
+        return false
+    }
+
+    handleKeyDown(event, keyCode) {
+        this.keys[event.key] = true
+        return false
+    }
+
+    handleKeyUp(event, keyCode) {
+        this.keys[event.key] = false
         return false
     }
 }

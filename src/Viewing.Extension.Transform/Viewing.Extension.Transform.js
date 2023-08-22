@@ -30,6 +30,28 @@ class TransformExtension extends ExtensionBase {
     static get ExtensionId() { return 'Viewing.Extension.Transform' }
 
     load() {
+        this.translateTool.handleKeyUp = (event, keyCode)=>{
+            if (this.translateTool.keys[event.key] == true){
+                switch(event.key){
+                    case 'r':
+                        this.onClickRx()
+                    break
+                }
+            }
+            this.translateTool.keys[event.key] = false
+            return false
+        }
+        this.rotateTool.handleKeyUp = (event, keyCode)=>{
+            if (this.rotateTool.keys[event.key] == true){
+                switch(event.key){
+                    case 'g':
+                        this.onClickTx()
+                    break
+                }
+            }
+            this.rotateTool.keys[event.key] = false
+            return false
+        }
         return this.viewer && true
     }
 
@@ -43,30 +65,14 @@ class TransformExtension extends ExtensionBase {
         this._txControl = ViewerToolkit.createButton(
             this.State.TRANSLATE,
             'fa fa-arrows-alt',
-            'Translate Tool', () => {
-                if (this.translateTool.active) {
-                    this._txControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
-
-                } else {
-                    this._state = this.State.TRANSLATE
-                    this.onToolStateChange()
-                    this._txControl.setState(Autodesk.Viewing.UI.Button.State.ACTIVE)
-                }
-            })
+            'Translate Tool (G)',
+            this.onClickTx.bind(this))
 
         this._rxControl = ViewerToolkit.createButton(
             this.State.ROTATE,
             'fa fa-refresh',
-            'Rotate Tool', () => {
-                if (this.rotateTool.active) {
-                    this._rxControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
-
-                } else {
-                    this._state = this.State.ROTATE
-                    this.onToolStateChange()
-                    this._rxControl.setState(Autodesk.Viewing.UI.Button.State.ACTIVE)
-                }
-            })
+            'Rotate Tool (R)',
+            this.onClickRx.bind(this))
 
         this.parentControl = this._options.parentControl
 
@@ -158,6 +164,44 @@ class TransformExtension extends ExtensionBase {
                 this._comboCtrl.setToolTip(this._rxControl.getToolTip())
                 this._comboCtrl.icon.className = this._rxControl.icon.className
                 break;
+        }
+    }
+
+    onClickTx() {
+        if (this.translateTool.active) {
+            this._txControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
+
+        } else {
+            this._state = this.State.TRANSLATE
+            const _selection = viewer.getAggregateSelection()
+
+            this.onToolStateChange()
+            this._txControl.setState(Autodesk.Viewing.UI.Button.State.ACTIVE)
+
+            if (_selection.length !== 0) {
+                this.viewer.setAggregateSelection(
+                    _selection.map(({ model, selection }) => ({ model, ids: selection }))
+                )
+            }
+        }
+    }
+
+    onClickRx() {
+        if (this.rotateTool.active) {
+            this._rxControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
+
+        } else {
+            this._state = this.State.ROTATE
+            const _selection = viewer.getAggregateSelection()
+
+            this.onToolStateChange()
+            this._rxControl.setState(Autodesk.Viewing.UI.Button.State.ACTIVE)
+
+            if (_selection.length !== 0) {
+                this.viewer.setAggregateSelection(
+                    _selection.map(({ model, selection }) => ({ model, ids: selection }))
+                )
+            }
         }
     }
 }
