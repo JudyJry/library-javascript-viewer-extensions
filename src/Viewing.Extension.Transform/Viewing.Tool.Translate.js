@@ -115,8 +115,11 @@ export default class TransformTool extends EventsEmitter {
                 this._selection.dbIdArray.push(rootId)
             }
 
-            var box = ViewerToolkit.getBoundingBox(this._selection.dbIdArray[0], this._selection.model)
-            this._hitPoint = box && box.getCenter()
+            const selectionBox = this._selection.dbIdArray.reduce((bbox, dbId) => {
+                bbox.union(ViewerToolkit.getBoundingBox(dbId, this._selection.model))
+                return bbox
+            }, new THREE.Box3())
+            this._hitPoint = selectionBox.getCenter()
 
             this.emit('transform.modelSelected', this._selection)
 
@@ -182,13 +185,13 @@ export default class TransformTool extends EventsEmitter {
      * @param {{x:number,y:number}} screenPoint 
      * @returns {{x:number,y:number}}
      */
-    normalize(screenPoint) {
+    /*normalize(screenPoint) {
         var viewport = this._viewer.navigation.getScreenViewport()
         return {
             x: (screenPoint.x - viewport.left) / viewport.width,
             y: (screenPoint.y - viewport.top) / viewport.height
         }
-    }
+    }*/
 
     /**
      * 

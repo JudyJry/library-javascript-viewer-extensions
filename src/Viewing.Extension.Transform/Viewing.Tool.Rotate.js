@@ -1,195 +1,121 @@
 import EventsEmitter from '../components/EventsEmitter'
+import ViewerToolkit from '../components/Viewer.Toolkit'
 
 export default class RotateTool extends EventsEmitter {
-
-    /////////////////////////////////////////////////////////////////
-    // Class constructor
-    //
-    /////////////////////////////////////////////////////////////////
     constructor(viewer) {
-
         super()
-
         this.keys = {}
-
         this.active = false
-
         this.viewer = viewer
-
         this.fullTransform = false
-
         this.viewer.toolController.registerTool(this)
-
         this.onAggregateSelectionChangedHandler = (e) => {
-
             this.onAggregateSelectionChanged(e)
         }
     }
 
-    /////////////////////////////////////////////////////////////////
-    // Enable tool
-    //
-    /////////////////////////////////////////////////////////////////
     enable(enable) {
-
         var name = this.getName()
-
         if (enable) {
-
             this.viewer.toolController.activateTool(name)
-
         } else {
-
             this.viewer.toolController.deactivateTool(name)
         }
     }
 
-    /////////////////////////////////////////////////////////////////
-    //
-    //
-    /////////////////////////////////////////////////////////////////
-    getNames() {
+    getNames() { return ['Viewing.Rotate.Tool'] }
 
-        return ['Viewing.Rotate.Tool']
-    }
+    getName() { return 'Viewing.Rotate.Tool' }
 
-    /////////////////////////////////////////////////////////////////
-    //
-    //
-    /////////////////////////////////////////////////////////////////
-    getName() {
-
-        return 'Viewing.Rotate.Tool'
-    }
-
-    ///////////////////////////////////////////////////////////////////
-    // activate tool
-    //
-    ///////////////////////////////////////////////////////////////////
     activate() {
-
         if (!this.active) {
-
             this.active = true
-
             this.viewer.addEventListener(
                 Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT,
                 this.onAggregateSelectionChangedHandler)
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // deactivate tool
-    //
-    ///////////////////////////////////////////////////////////////////////////
     deactivate() {
-
         if (this.active) {
-
             this.active = false
-
             if (this.rotateControl) {
-
                 this.rotateControl.remove()
                 this.rotateControl = null
             }
-
             this.viewer.removeEventListener(
                 Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT,
                 this.onAggregateSelectionChangedHandler)
+
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Component Selection Handler 
-    // (use Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT instead of 
-    //  Autodesk.Viewing.SELECTION_CHANGED_EVENT - deprecated )
-    //
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * Component Selection Handler 
+     * (use Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT instead of
+     *  Autodesk.Viewing.SELECTION_CHANGED_EVENT - deprecated )
+     * @param {*} event 
+     * @returns 
+     */
     onAggregateSelectionChanged(event) {
-
         if (this.rotateControl && this.rotateControl.engaged) {
-
             this.rotateControl.engaged = false
-
             this.viewer.select(this.selection.dbIdArray)
-
             return
         }
 
         if (event.selections && event.selections.length) {
-
             var selection = event.selections[0]
-
             this.selection = selection
-
-            this.emit('transform.modelSelected',
-                this.selection)
+            this.emit('transform.modelSelected', this.selection)
 
             if (this.fullTransform) {
-
                 this.selection.fragIdsArray = []
-
-                var fragCount = selection.model.getFragmentList().
-                    fragments.fragId2dbId.length
+                var fragCount = selection.model.getFragmentList().fragments.fragId2dbId.length
 
                 for (var fragId = 0; fragId < fragCount; ++fragId) {
-
                     this.selection.fragIdsArray.push(fragId)
                 }
 
                 this.selection.dbIdArray = []
 
                 var instanceTree = selection.model.getData().instanceTree
-
                 var rootId = instanceTree.getRootId()
-
                 this.selection.dbIdArray.push(rootId)
             }
 
             this.drawControl()
 
-            this.viewer.fitToView(
-                this.selection.dbIdArray)
+            const selectionBox = this.selection.dbIdArray.reduce((bbox, dbId) => {
+                bbox.union(ViewerToolkit.getBoundingBox(dbId, this.selection.model))
+                return bbox
+            }, new THREE.Box3())
+            this.viewer.navigation.fitBounds(false, selectionBox.expandByScalar(3), true, true)
+            //this.viewer.fitToView(this.selection.dbIdArray)
 
         } else {
-
             this.clearSelection()
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Selection cleared
-    //
-    ///////////////////////////////////////////////////////////////////////////
     clearSelection() {
-
         this.selection = null
-
         if (this.rotateControl) {
-
             this.rotateControl.remove()
-
             this.rotateControl = null
-
             this.viewer.impl.sceneUpdated(true)
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Draw rotate control
-    //
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * Draw rotate control
+     */
     drawControl() {
-
         var bBox = this.geWorldBoundingBox(
             this.selection.fragIdsArray,
             this.selection.model.getFragmentList())
 
-        this.center = new THREE.Vector3(
-            (bBox.min.x + bBox.max.x) / 2,
-            (bBox.min.y + bBox.max.y) / 2,
-            (bBox.min.z + bBox.max.z) / 2)
+        this.center = bBox.getCenter()
 
         var size = Math.max(
             bBox.max.x - bBox.min.x,
@@ -197,15 +123,12 @@ export default class RotateTool extends EventsEmitter {
             bBox.max.z - bBox.min.z) * 0.8
 
         if (this.rotateControl) {
-
             this.rotateControl.remove()
         }
 
-        this.rotateControl = new RotateControl(
-            this.viewer, this.center, size)
+        this.rotateControl = new RotateControl(this.viewer, this.center, size)
 
         this.rotateControl.on('transform.rotate', (data) => {
-
             this.rotateFragments(
                 this.selection.model,
                 this.selection.fragIdsArray,
@@ -217,69 +140,44 @@ export default class RotateTool extends EventsEmitter {
         })
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
     handleButtonDown(event, button) {
-
         if (this.rotateControl) {
-
             if (this.rotateControl.onPointerDown(event)) {
-
                 return true
             }
         }
 
         if (button === 0 && this.keys.Control) {
-
             this.isDragging = true
-
             this.mousePos = {
                 x: event.clientX,
                 y: event.clientY
             }
-
             return true
         }
 
         return false
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
     handleButtonUp(event, button) {
-
         if (this.rotateControl) {
-
             this.rotateControl.onPointerUp(event)
         }
 
         if (button === 0) {
-
             this.isDragging = false
         }
 
         return false
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
     handleMouseMove(event) {
-
         if (this.rotateControl) {
-
             this.rotateControl.onPointerHover(event)
         }
 
         if (this.isDragging) {
-
             if (this.selection) {
-
                 var offset = {
                     x: this.mousePos.x - event.clientX,
                     y: event.clientY - this.mousePos.y
@@ -303,21 +201,15 @@ export default class RotateTool extends EventsEmitter {
                 var eye = new THREE.Vector3()
 
                 eye.copy(camera.position).sub(camera.target)
-
                 eyeDirection.copy(eye).normalize()
-
                 upDirection.copy(camera.up).normalize()
-
-                sidewaysDirection.crossVectors(
-                    upDirection, eyeDirection).normalize()
+                sidewaysDirection.crossVectors(upDirection, eyeDirection).normalize()
 
                 upDirection.setLength(offset.y)
 
                 sidewaysDirection.setLength(offset.x)
 
-                moveDirection.copy(
-                    upDirection.add(
-                        sidewaysDirection))
+                moveDirection.copy(upDirection.add(sidewaysDirection))
 
                 axis.crossVectors(moveDirection, eye).normalize()
 
@@ -336,42 +228,30 @@ export default class RotateTool extends EventsEmitter {
         return false
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
     handleKeyDown(event, keyCode) {
-
+        console.log(event.key)
         this.keys[event.key] = true
-
         return false
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
     handleKeyUp(event, keyCode) {
-
         this.keys[event.key] = false
-
         return false
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Rotate selected fragments
-    //
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * Rotate selected fragments
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number[]} fragIdsArray 
+     * @param {string} axis 
+     * @param {number} angle 
+     * @param {THREE.Vector3} center 
+     */
     rotateFragments(model, fragIdsArray, axis, angle, center) {
-
         var quaternion = new THREE.Quaternion()
-
         quaternion.setFromAxisAngle(axis, angle)
-
         fragIdsArray.forEach((fragId, idx) => {
-
-            var fragProxy = this.viewer.impl.getFragmentProxy(
-                model, fragId)
+            var fragProxy = this.viewer.impl.getFragmentProxy(model, fragId)
 
             fragProxy.getAnimTransform()
 
@@ -386,15 +266,11 @@ export default class RotateTool extends EventsEmitter {
 
             fragProxy.position = position
 
-            fragProxy.quaternion.multiplyQuaternions(
-                quaternion, fragProxy.quaternion)
+            fragProxy.quaternion.multiplyQuaternions(quaternion, fragProxy.quaternion)
 
             if (idx === 0) {
-
                 var euler = new THREE.Euler()
-
-                euler.setFromQuaternion(
-                    fragProxy.quaternion, 0)
+                euler.setFromQuaternion(fragProxy.quaternion, 0)
 
                 this.emit('transform.rotate', {
                     rotation: euler,
@@ -406,22 +282,20 @@ export default class RotateTool extends EventsEmitter {
         })
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // returns bounding box as it appears in the viewer
-    // (transformations could be applied)
-    //
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * returns bounding box as it appears in the viewer
+     * (transformations could be applied)
+     * @param {number[]} fragIds 
+     * @param {*} fragList 
+     * @returns {THREE.Box3}
+     */
     geWorldBoundingBox(fragIds, fragList) {
-
         var fragbBox = new THREE.Box3()
         var nodebBox = new THREE.Box3()
-
         fragIds.forEach((fragId) => {
-
             fragList.getWorldBounds(fragId, fragbBox)
             nodebBox.union(fragbBox)
         })
-
         return nodebBox
     }
 }
@@ -433,6 +307,7 @@ class RotateControl extends EventsEmitter {
     constructor(viewer, center, size) {
         super()
         this.engaged = false
+        this.useAxis = false
 
         this.overlayScene = 'rotateControlScene'
         this.domElement = viewer.impl.canvas
@@ -441,27 +316,37 @@ class RotateControl extends EventsEmitter {
         this.center = center
         this.size = size
         this.gizmos = []
+        this.axis = []
 
+        this.create(center, size)
+    }
+
+    create(center, size) {
+        const axisSize = 1 //0.85
+        const gizmosSize = 0.0075 //0.0045
+        const pickerSize = 0.05 //0.02
         this.viewer.impl.createOverlayScene(this.overlayScene)
 
-        this.createAxis(
-            center, new THREE.Vector3(1, 0, 0),
-            size * 0.85, 0xFF0000)
+        if (this.useAxis) {
+            this.axis.push(this.createAxis(
+                center, new THREE.Vector3(1, 0, 0),
+                size * axisSize, 0xFF0000))
 
-        this.createAxis(
-            center, new THREE.Vector3(0, 1, 0),
-            size * 0.85, 0x00FF00)
+            this.axis.push(this.createAxis(
+                center, new THREE.Vector3(0, 1, 0),
+                size * axisSize, 0x00FF00))
 
-        this.createAxis(
-            center, new THREE.Vector3(0, 0, 1),
-            size * 0.85, 0x0000FF)
+            this.axis.push(this.createAxis(
+                center, new THREE.Vector3(0, 0, 1),
+                size * axisSize, 0x0000FF))
+        }
 
         // World UP = Y
         if (this.camera.worldup.y) {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(0, Math.PI / 2, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0xFF0000,
                 Math.PI,
                 new THREE.Vector3(1, 0, 0)))
@@ -469,7 +354,7 @@ class RotateControl extends EventsEmitter {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(Math.PI / 2, 0, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0x00FF00,
                 2 * Math.PI,
                 new THREE.Vector3(0, 1, 0)))
@@ -477,7 +362,7 @@ class RotateControl extends EventsEmitter {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(0, 0, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0x0000FF,
                 Math.PI,
                 new THREE.Vector3(0, 0, 1)))
@@ -487,7 +372,7 @@ class RotateControl extends EventsEmitter {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(Math.PI / 2, Math.PI / 2, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0xFF0000,
                 Math.PI,
                 new THREE.Vector3(1, 0, 0)))
@@ -495,7 +380,7 @@ class RotateControl extends EventsEmitter {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(Math.PI / 2, 0, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0x00FF00,
                 Math.PI,
                 new THREE.Vector3(0, 1, 0)))
@@ -503,17 +388,17 @@ class RotateControl extends EventsEmitter {
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(0, 0, 0),
-                size * 0.0045,
+                size * gizmosSize,
                 size * 0.8, 0x0000FF,
                 2 * Math.PI,
                 new THREE.Vector3(0, 0, 1)))
         }
 
-        this.picker = this.createSphere(size * 0.02)
+        this.picker = this.createSphere(size * pickerSize)
 
         var material = new THREE.LineBasicMaterial({
             color: 0xFFFF00,
-            linewidth: 1,
+            linewidth: 3, //1
             depthTest: false,
             depthWrite: false,
             transparent: true
@@ -524,7 +409,7 @@ class RotateControl extends EventsEmitter {
             this.center,
             material)
 
-        viewer.impl.sceneUpdated(true)
+        this.viewer.impl.sceneUpdated(true)
     }
 
     /**
@@ -535,17 +420,11 @@ class RotateControl extends EventsEmitter {
      * @returns {THREE.Line} line
      */
     createLine(start, end, material) {
-
         var geometry = new THREE.Geometry()
-
         geometry.vertices.push(new THREE.Vector3(start.x, start.y, start.z))
-
         geometry.vertices.push(new THREE.Vector3(end.x, end.y, end.z))
-
         var line = new THREE.Line(geometry, material)
-
         this.viewer.impl.addOverlay(this.overlayScene, line)
-
         return line
     }
 
@@ -599,6 +478,7 @@ class RotateControl extends EventsEmitter {
      * @param {THREE.Vector3} dir 
      * @param {number} size 
      * @param {number} color 
+     * @returns {{line:THREE.Line, cone:THREE.Mesh}}
      */
     createAxis(start, dir, size, color) {
         var end = {
@@ -615,9 +495,10 @@ class RotateControl extends EventsEmitter {
             transparent: true
         })
 
-        this.createLine(start, end, material)
+        var line = this.createLine(start, end, material)
 
-        this.createCone(end, dir, size * 0.1, material)
+        var cone = this.createCone(end, dir, size * 0.1, material)
+        return { line, cone }
     }
 
     /**

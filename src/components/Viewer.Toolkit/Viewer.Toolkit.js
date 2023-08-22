@@ -202,7 +202,7 @@ export default class ViewerToolkit {
     /**
      * get bounding box by dbId
      * @param {number} dbId 
-     * @param {*?} model 
+     * @param {Autodesk.Viewing.Model?} model 
      * @returns {THREE.Box3} BoundingBox
      */
     static getBoundingBox(dbId, model) {
@@ -212,10 +212,11 @@ export default class ViewerToolkit {
         }
         const it = _model.getInstanceTree();
         const fragList = _model.getFragmentList();
-        let bounds = new THREE.Box3();
+
+        const bounds = new THREE.Box3();
+        const box = new THREE.Box3();
 
         it.enumNodeFragments(dbId, (fragId) => {
-            let box = new THREE.Box3();
             fragList.getWorldBounds(fragId, box);
             bounds.union(box);
         }, true);
@@ -225,7 +226,7 @@ export default class ViewerToolkit {
 
     /**
      * Gets properties from component
-     * @param {*} model 
+     * @param {Autodesk.Viewing.Model} model 
      * @param {number} dbId 
      * @param {*} requestedProps 
      * @returns {Promise<Object[]>} Properties
@@ -289,7 +290,7 @@ export default class ViewerToolkit {
 
     /**
      * Gets all existing properties from component  dbIds
-     * @param {*} model 
+     * @param {Autodesk.Viewing.Model} model 
      * @param {number} dbIds 
      * @returns {Promise<Object[]>}
      */
@@ -329,8 +330,8 @@ export default class ViewerToolkit {
     }
     /**
      * Maps components by property
-     * @param {*} model 
-     * @param {*} propName 
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {string} propName 
      * @param {*} components 
      * @param {*} defaultProp 
      * @returns {Promise<Object>}
@@ -484,7 +485,7 @@ export default class ViewerToolkit {
 
     /**
      * Set component material
-     * @param {*} model 
+     * @param {Autodesk.Viewing.Model} model 
      * @param {number} dbId 
      * @param {*} material 
      */
@@ -499,7 +500,7 @@ export default class ViewerToolkit {
 
     /**
      * Recursively builds the model tree
-     * @param {*} model 
+     * @param {Autodesk.Viewing.Model} model 
      * @param {Function} createNodeFunc 
      * @returns {Object} rootNode
      * @property {number} rootNode.dbId
@@ -542,7 +543,7 @@ export default class ViewerToolkit {
 
     /**
      * Recursively execute task on model tree
-     * @param {*} model 
+     * @param {Autodesk.Viewing.Model} model 
      * @param {Function} task 
      * @returns {[]} task return values
      */
