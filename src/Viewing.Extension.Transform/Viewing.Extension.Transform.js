@@ -1,8 +1,3 @@
-/////////////////////////////////////////////////////////////////////
-// Viewing.Extension.CSSTVExtension
-// by Philippe Leefsma, April 2016
-//
-/////////////////////////////////////////////////////////////////////
 import TranslateTool from './Viewing.Tool.Translate'
 import RotateTool from './Viewing.Tool.Rotate'
 
@@ -11,7 +6,11 @@ import ViewerToolkit from '../components/Viewer.Toolkit'
 
 class TransformExtension extends ExtensionBase {
     constructor(viewer, options = {}) {
-        super(viewer, options)
+        super(viewer,
+            Object.assign({
+                parentControl: null,
+                collapsed: false
+            }, options))
         this.keys = {}
         this.translateTool = new TranslateTool(viewer)
         this._viewer.toolController.registerTool(this.translateTool)
@@ -19,34 +18,34 @@ class TransformExtension extends ExtensionBase {
         this.rotateTool = new RotateTool(viewer)
         this._viewer.toolController.registerTool(this.rotateTool)
 
-        this.State = Object.freeze({
+        this.ToolState = Object.freeze({
             NONE: null,
             TRANSLATE: 'toolbar-translate',
             ROTATE: 'toolbar-rotate',
         })
-        this._state = this.State.TRANSLATE
+        this._toolState = this.ToolState.TRANSLATE
     }
 
     static get ExtensionId() { return 'Viewing.Extension.Transform' }
 
     load() {
-        this.translateTool.handleKeyUp = (event, keyCode)=>{
-            if (this.translateTool.keys[event.key] == true){
-                switch(event.key){
+        this.translateTool.handleKeyUp = (event, keyCode) => {
+            if (this.translateTool.keys[event.key] == true) {
+                switch (event.key) {
                     case 'r':
                         this.onClickRx()
-                    break
+                        break
                 }
             }
             this.translateTool.keys[event.key] = false
             return false
         }
-        this.rotateTool.handleKeyUp = (event, keyCode)=>{
-            if (this.rotateTool.keys[event.key] == true){
-                switch(event.key){
+        this.rotateTool.handleKeyUp = (event, keyCode) => {
+            if (this.rotateTool.keys[event.key] == true) {
+                switch (event.key) {
                     case 'g':
                         this.onClickTx()
-                    break
+                        break
                 }
             }
             this.rotateTool.keys[event.key] = false
@@ -59,17 +58,19 @@ class TransformExtension extends ExtensionBase {
         this.parentControl.removeControl(this._comboCtrl)
         this._viewer.toolController.deactivateTool(this.translateTool.getName())
         this._viewer.toolController.deactivateTool(this.rotateTool.getName())
+        this._viewer.toolController.deregisterTool(this.translateTool)
+        this._viewer.toolController.deregisterTool(this.rotateTool)
     }
 
     onToolbarCreated(_toolbar) {
         this._txControl = ViewerToolkit.createButton(
-            this.State.TRANSLATE,
+            this.ToolState.TRANSLATE,
             'fa fa-arrows-alt',
             'Translate Tool (G)',
             this.onClickTx.bind(this))
 
         this._rxControl = ViewerToolkit.createButton(
-            this.State.ROTATE,
+            this.ToolState.ROTATE,
             'fa fa-refresh',
             'Rotate Tool (R)',
             this.onClickRx.bind(this))
@@ -137,13 +138,17 @@ class TransformExtension extends ExtensionBase {
         )
 
         this.parentControl.addControl(this._comboCtrl)
+
+        if (this._options.collapsed == true) {
+            this.parentControl.setCollapsed(true)
+        }
     }
 
     onStateChange(event) {
         switch (event.state) {
             case Autodesk.Viewing.UI.Button.State.ACTIVE:
                 //console.log('ACTIVE', this._comboCtrl.getId())
-                this._comboCtrl.subMenu.getControl(this._state).setState(event.state)
+                this._comboCtrl.subMenu.getControl(this._toolState).setState(event.state)
                 break;
             case Autodesk.Viewing.UI.Button.State.INACTIVE:
             case Autodesk.Viewing.UI.Button.State.DISABLED:
@@ -155,12 +160,12 @@ class TransformExtension extends ExtensionBase {
     }
 
     onToolStateChange() {
-        switch (this._state) {
-            case this.State.TRANSLATE:
+        switch (this._toolState) {
+            case this.ToolState.TRANSLATE:
                 this._comboCtrl.setToolTip(this._txControl.getToolTip())
                 this._comboCtrl.icon.className = this._txControl.icon.className
                 break;
-            case this.State.ROTATE:
+            case this.ToolState.ROTATE:
                 this._comboCtrl.setToolTip(this._rxControl.getToolTip())
                 this._comboCtrl.icon.className = this._rxControl.icon.className
                 break;
@@ -172,7 +177,7 @@ class TransformExtension extends ExtensionBase {
             this._txControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
 
         } else {
-            this._state = this.State.TRANSLATE
+            this._toolState = this.ToolState.TRANSLATE
             const _selection = viewer.getAggregateSelection()
 
             this.onToolStateChange()
@@ -191,7 +196,7 @@ class TransformExtension extends ExtensionBase {
             this._rxControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
 
         } else {
-            this._state = this.State.ROTATE
+            this._toolState = this.ToolState.ROTATE
             const _selection = viewer.getAggregateSelection()
 
             this.onToolStateChange()
@@ -203,6 +208,33 @@ class TransformExtension extends ExtensionBase {
                 )
             }
         }
+    }
+    /**
+     * 
+     * @param {TransformExtension.ToolState} state 
+     * @returns {string} tool name
+     */
+    getToolName(state) {
+        switch (state) {
+            case this.ToolState.TRANSLATE: return this.translateTool.getName()
+            case this.ToolState.ROTATE: return this.rotateTool.getName()
+        }
+        return null
+    }
+    /**
+     * 
+     * @param {TransformExtension.ToolState} state 
+     * @returns {TransformTool | RotateTool}
+     * @example
+     * let ext = viewer.getExtension('Viewing.Extension.Transform')
+     * ext.getTool(ext.ToolState.TRANSLATE)
+     */
+    getTool(state) {
+        switch (state) {
+            case this.ToolState.TRANSLATE: return this.translateTool
+            case this.ToolState.ROTATE: return this.rotateTool
+        }
+        return null
     }
 }
 

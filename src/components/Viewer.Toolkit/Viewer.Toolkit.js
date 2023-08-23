@@ -176,28 +176,28 @@ export default class ViewerToolkit {
         return new Promise(async (resolve, reject) => {
             try {
                 var fragIds = await ViewerToolkit.getFragIds(
-                    model, dbId);
+                    model, dbId)
 
                 if (!fragIds.length) {
-                    return reject('No geometry, invalid dbId?');
+                    return reject('No geometry, invalid dbId?')
                 }
 
-                var fragList = model.getFragmentList();
+                var fragList = model.getFragmentList()
 
-                var fragbBox = new THREE.Box3();
-                var nodebBox = new THREE.Box3();
+                var fragbBox = new THREE.Box3()
+                var nodebBox = new THREE.Box3()
 
                 fragIds.forEach(function (fragId) {
-                    fragList.getWorldBounds(fragId, fragbBox);
-                    nodebBox.union(fragbBox);
+                    fragList.getWorldBounds(fragId, fragbBox)
+                    nodebBox.union(fragbBox)
                 });
 
-                return resolve(nodebBox);
+                return resolve(nodebBox)
             }
             catch (ex) {
-                return reject(ex);
+                return reject(ex)
             }
-        });
+        })
     }
     /**
      * get bounding box by dbId
@@ -210,18 +210,18 @@ export default class ViewerToolkit {
         if (!_model) {
             _model = viewer.model
         }
-        const it = _model.getInstanceTree();
-        const fragList = _model.getFragmentList();
+        const it = _model.getInstanceTree()
+        const fragList = _model.getFragmentList()
 
-        const bounds = new THREE.Box3();
-        const box = new THREE.Box3();
+        const bounds = new THREE.Box3()
+        const box = new THREE.Box3()
 
         it.enumNodeFragments(dbId, (fragId) => {
-            fragList.getWorldBounds(fragId, box);
-            bounds.union(box);
-        }, true);
+            fragList.getWorldBounds(fragId, box)
+            bounds.union(box)
+        }, true)
 
-        return bounds;
+        return bounds
     }
 
     /**

@@ -73,7 +73,7 @@ export default class TransformTool extends EventsEmitter {
                     this._transformMesh.position.y - fragProxy.offset.y,
                     this._transformMesh.position.z - fragProxy.offset.z)
 
-                fragProxy.position = position
+                fragProxy.position.copy(position)
 
                 fragProxy.updateAnimTransform()
             }

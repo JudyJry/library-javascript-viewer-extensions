@@ -263,7 +263,7 @@ export default class RotateTool extends EventsEmitter {
 
             position.add(center)
 
-            fragProxy.position = position
+            fragProxy.position.copy(position)
 
             fragProxy.quaternion.multiplyQuaternions(quaternion, fragProxy.quaternion)
 
@@ -368,6 +368,7 @@ class RotateControl extends EventsEmitter {
         }
         else {
             // World UP = Z
+            //X
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(Math.PI / 2, Math.PI / 2, 0),
@@ -375,7 +376,7 @@ class RotateControl extends EventsEmitter {
                 size * 0.8, 0xFF0000,
                 Math.PI,
                 new THREE.Vector3(1, 0, 0)))
-
+            //Y
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(Math.PI / 2, 0, 0),
@@ -383,7 +384,7 @@ class RotateControl extends EventsEmitter {
                 size * 0.8, 0x00FF00,
                 Math.PI,
                 new THREE.Vector3(0, 1, 0)))
-
+            //Z
             this.gizmos.push(this.createGizmo(
                 center,
                 new THREE.Euler(0, 0, 0),
