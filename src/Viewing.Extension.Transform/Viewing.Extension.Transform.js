@@ -236,6 +236,21 @@ class TransformExtension extends ExtensionBase {
         }
         return null
     }
+
+    setTranslate(dbIds = [], pos) {
+        if (!Array.isArray(dbIds) || dbIds.length == 0) return false
+        return this.translateTool.change(viewer.model, dbIds, pos)
+    }
+    setAggregateTranslate(selections = [], pos) {
+        if (!pos || !(pos instanceof THREE.Vector3)) return false
+        if (!Array.isArray(selections) || selections.length == 0) return false
+        var b = selections.map(({ model, selection }) => {
+            if (!model) return false
+            if (!Array.isArray(selection) || selection.length == 0) return false
+            return this.translateTool.change(model, selection, pos)
+        });
+        return b.every(e=>e)
+    }
 }
 
 Autodesk.Viewing.theExtensionManager.registerExtension(TransformExtension.ExtensionId, TransformExtension)

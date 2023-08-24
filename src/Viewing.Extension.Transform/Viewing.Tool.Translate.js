@@ -87,6 +87,26 @@ export default class TransformTool extends EventsEmitter {
         this._viewer.impl.sceneUpdated(true)
     }
 
+    change(model, dbIds, pos) {
+        const it = model.getInstanceTree()
+        dbIds.forEach((dbId)=>{
+            it.enumNodeFragments(dbId,(fragId)=>{
+                var fragProxy = this._viewer.impl.getFragmentProxy(model, fragId)
+                fragProxy.getAnimTransform()
+                
+                var position = new THREE.Vector3(
+                    pos.x + fragProxy.position.x,
+                    pos.y + fragProxy.position.y,
+                    pos.z + fragProxy.position.z)
+        
+                fragProxy.position.copy(position)
+        
+                fragProxy.updateAnimTransform()
+            })
+        })
+        this._viewer.impl.sceneUpdated(true)
+    }
+
     /**
      * on camera changed
      */
