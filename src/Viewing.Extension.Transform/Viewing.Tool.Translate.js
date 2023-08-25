@@ -86,25 +86,40 @@ export default class TransformTool extends EventsEmitter {
 
         this._viewer.impl.sceneUpdated(true)
     }
-
-    change(model, dbIds, pos) {
+    /**
+     * Translate dbIds fragment programmatically
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number[]} dbIds 
+     * @param {THREE.Vector3} pos 
+     */
+    async change(model, dbIds, pos) {
         const it = model.getInstanceTree()
-        dbIds.forEach((dbId)=>{
-            it.enumNodeFragments(dbId,(fragId)=>{
-                var fragProxy = this._viewer.impl.getFragmentProxy(model, fragId)
-                fragProxy.getAnimTransform()
-                
-                var position = new THREE.Vector3(
-                    pos.x + fragProxy.position.x,
-                    pos.y + fragProxy.position.y,
-                    pos.z + fragProxy.position.z)
-        
-                fragProxy.position.copy(position)
-        
-                fragProxy.updateAnimTransform()
+        const p = dbIds.map(async (root) => {
+            let allchild = await ViewerToolkit.getAllDbIds(model, root)
+            allchild.forEach((dbId)=>{
+                it.enumNodeFragments(dbId, (fragId) => {
+                    var fragProxy = this._viewer.impl.getFragmentProxy(model, fragId)
+                    fragProxy.getAnimTransform()
+    
+                    var position = new THREE.Vector3(
+                        pos.x + fragProxy.position.x,
+                        pos.y + fragProxy.position.y,
+                        pos.z + fragProxy.position.z)
+    
+                    fragProxy.position.copy(position)
+    
+                    fragProxy.updateAnimTransform()
+                })
             })
         })
+        await Promise.all(p)
         this._viewer.impl.sceneUpdated(true)
+        return true
+    }
+
+
+    changeWorld(model, dbIds, pos) {
+
     }
 
     /**

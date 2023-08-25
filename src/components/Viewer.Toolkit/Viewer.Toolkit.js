@@ -167,6 +167,36 @@ export default class ViewerToolkit {
     }
 
     /**
+     * Return All child DbId contained by Root DbId
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number} rootId 
+     * @param {boolean} last 
+     * @returns {Promise<number[]>}
+     */
+    static async getAllDbIds(model, rootId, last = true) {
+        let _it = model.getInstanceTree()
+	    if (_it) _it = await new Promise((resolve)=>{ model.getObjectTree((it) => {resolve(it)}) })
+        return new Promise((resolve) => {
+            const alldbId = [];
+            if (!rootId) { resolve(alldbId); }
+            if (_it.getChildCount(rootId) == 0) { alldbId.push(rootId); resolve(alldbId); }
+            const queue = [];
+            queue.push(rootId);
+            while (queue.length > 0) {
+                const node = queue.shift();
+                if (last == false) { alldbId.push(node); }
+                else if (last && _it.getChildCount(node) == 0) { alldbId.push(node); }
+    
+                _it.enumNodeChildren(node, (childNode) => {
+                    childNode && queue.push(childNode);
+                });
+            }
+            resolve(alldbId);
+        })
+    }
+
+
+    /**
      * Node bounding box
      * @param {*} model 
      * @param {number} dbId 

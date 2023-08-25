@@ -237,19 +237,24 @@ class TransformExtension extends ExtensionBase {
         return null
     }
 
-    setTranslate(dbIds = [], pos) {
-        if (!Array.isArray(dbIds) || dbIds.length == 0) return false
-        return this.translateTool.change(viewer.model, dbIds, pos)
+    async translate(dbIds, pos) {
+        if (!pos || !(pos instanceof THREE.Vector3)) return false
+        let _dbIds = dbIds
+        if (!Array.isArray(_dbIds) || _dbIds.length == 0) return false
+        else if (typeof dbIds === 'string') { _dbIds = [parseInt(dbIds)] }
+        else if (typeof dbIds === 'number') { _dbIds = [dbIds] }
+        return await this.translateTool.change(viewer.model, _dbIds, pos)
     }
-    setAggregateTranslate(selections = [], pos) {
+    async aggregateTranslate(selections, pos) {
         if (!pos || !(pos instanceof THREE.Vector3)) return false
         if (!Array.isArray(selections) || selections.length == 0) return false
-        var b = selections.map(({ model, selection }) => {
+        var b = selections.map(async ({ model, selection }) => {
             if (!model) return false
             if (!Array.isArray(selection) || selection.length == 0) return false
-            return this.translateTool.change(model, selection, pos)
+            return await this.translateTool.change(model, selection, pos)
         });
-        return b.every(e=>e)
+        var p = await Promise.all(b)
+        return p.every(e => e)
     }
 }
 
