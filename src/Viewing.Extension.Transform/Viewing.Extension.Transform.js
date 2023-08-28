@@ -222,7 +222,7 @@ class TransformExtension extends ExtensionBase {
         return null
     }
     /**
-     * 
+     * get transform tool by ToolState
      * @param {TransformExtension.ToolState} state 
      * @returns {TransformTool | RotateTool}
      * @example
@@ -236,7 +236,15 @@ class TransformExtension extends ExtensionBase {
         }
         return null
     }
-
+    /**
+     * translate dbIds programmatically
+     * @param {number[]} dbIds 
+     * @param {THREE.Vector3} pos 
+     * @returns {Promise<boolean>}
+     * @example
+     * let ext = viewer.getExtension('Viewing.Extension.Transform')
+     * ext.translate([1],new THREE.Vector3(20,2,2))
+     */
     async translate(dbIds, pos) {
         if (!pos || !(pos instanceof THREE.Vector3)) return false
         let _dbIds = dbIds
@@ -245,16 +253,59 @@ class TransformExtension extends ExtensionBase {
         else if (typeof dbIds === 'number') { _dbIds = [dbIds] }
         return await this.translateTool.change(viewer.model, _dbIds, pos)
     }
+    /**
+     * translate AggregateSelection programmatically
+     * @param {Object[]} selections 
+     * @param {THREE.Vector3} pos 
+     * @returns {Promise<boolean>}
+     * @example
+     * let ext = viewer.getExtension('Viewing.Extension.Transform')
+     * ext.aggregateTranslate(viewer.getAggregateSelection(),new THREE.Vector3(20,2,2))
+     */
     async aggregateTranslate(selections, pos) {
         if (!pos || !(pos instanceof THREE.Vector3)) return false
         if (!Array.isArray(selections) || selections.length == 0) return false
-        var b = selections.map(async ({ model, selection }) => {
+        var b = selections.map(({ model, selection }) => {
             if (!model) return false
             if (!Array.isArray(selection) || selection.length == 0) return false
-            return await this.translateTool.change(model, selection, pos)
+            return this.translateTool.change(model, selection, pos)
         });
         var p = await Promise.all(b)
         return p.every(e => e)
+    }
+    /**
+     * rotate dbIds programmatically
+     * @param {number[]} dbIds 
+     * @param {THREE.Vector3} axis 
+     * @param {number} angle 
+     * @param {boolean | THREE.Vector3} center if true that apply individual center, else if false apply median center, else give a point to apply custom center
+     * @returns {Promise<boolean>}
+     */
+    async rotate(dbIds, axis, angle = 0, center = false) {
+        if (!axis || !(axis instanceof THREE.Vector3)) return false
+        let _dbIds = dbIds
+        if (!Array.isArray(_dbIds) || _dbIds.length == 0) return false
+        else if (typeof dbIds === 'string') { _dbIds = [parseInt(dbIds)] }
+        else if (typeof dbIds === 'number') { _dbIds = [dbIds] }
+        var _center = center
+        if (_center === true) {
+            var b = _dbIds.map((dbId) => {
+                var cen = ViewerToolkit.getBoundingBox(dbId, viewer.model).getCenter()
+                return this.rotateTool.change(viewer.model, [dbId], axis, angle, cen)
+            })
+            var p = await Promise.all(b)
+            return p.every(e => e)
+        }
+        else if (_center === false) {
+            _center = _dbIds.reduce((bbox, dbId) => {
+                bbox.union(ViewerToolkit.getBoundingBox(dbId, viewer.model))
+                return bbox
+            }, new THREE.Box3()).getCenter()
+            return await this.rotateTool.change(viewer.model, _dbIds, axis, angle, _center)
+        }
+        else {
+            return await this.rotateTool.change(viewer.model, _dbIds, axis, angle, _center)
+        }
     }
 }
 

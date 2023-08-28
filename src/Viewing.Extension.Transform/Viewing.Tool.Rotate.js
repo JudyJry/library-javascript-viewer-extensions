@@ -242,7 +242,7 @@ export default class RotateTool extends EventsEmitter {
      * Rotate selected fragments
      * @param {Autodesk.Viewing.Model} model 
      * @param {number[]} fragIdsArray 
-     * @param {string} axis 
+     * @param {THREE.Vector3} axis 
      * @param {number} angle 
      * @param {THREE.Vector3} center 
      */
@@ -279,6 +279,48 @@ export default class RotateTool extends EventsEmitter {
 
             fragProxy.updateAnimTransform()
         })
+    }
+    /**
+     * Rotate dbIds fragment programmatically
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number[]} dbIds 
+     * @param {THREE.Vector3} axis 
+     * @param {number} angle 
+     * @param {THREE.Vector3} center 
+     * @returns {Promise<boolean>}
+     */
+    async change(model, dbIds, axis, angle, center) {
+        var quaternion = new THREE.Quaternion()
+        quaternion.setFromAxisAngle(axis, angle)
+        const it = model.getInstanceTree()
+        const p = dbIds.map(async (root) => {
+            let allchild = await ViewerToolkit.getAllDbIds(model, root)
+            allchild.forEach((dbId) => {
+                it.enumNodeFragments(dbId, (fragId) => {
+                    var fragProxy = this.viewer.impl.getFragmentProxy(model, fragId)
+
+                    fragProxy.getAnimTransform()
+                    
+                    var position = new THREE.Vector3(
+                        fragProxy.position.x - center.x,
+                        fragProxy.position.y - center.y,
+                        fragProxy.position.z - center.z)
+
+                    position.applyQuaternion(quaternion)
+
+                    position.add(center)
+
+                    fragProxy.position.copy(position)
+
+                    fragProxy.quaternion.multiplyQuaternions(quaternion, fragProxy.quaternion)
+
+                    fragProxy.updateAnimTransform()
+                })
+            })
+        })
+        await Promise.all(p)
+        this.viewer.impl.sceneUpdated(true)
+        return true
     }
 
     /**
