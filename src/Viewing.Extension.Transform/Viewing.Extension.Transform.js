@@ -210,7 +210,7 @@ class TransformExtension extends ExtensionBase {
         }
     }
     /**
-     * 
+     * get transform tool name by ToolState
      * @param {TransformExtension.ToolState} state 
      * @returns {string} tool name
      */
@@ -240,35 +240,47 @@ class TransformExtension extends ExtensionBase {
      * translate dbIds programmatically
      * @param {number[]} dbIds 
      * @param {THREE.Vector3} pos 
+     * @param {boolean} absolute if true that set absolute position, default is false
      * @returns {Promise<boolean>}
      * @example
      * let ext = viewer.getExtension('Viewing.Extension.Transform')
      * ext.translate([1],new THREE.Vector3(20,2,2))
      */
-    async translate(dbIds, pos) {
+    async translate(dbIds, pos, absolute = false) {
         if (!pos || !(pos instanceof THREE.Vector3)) return false
         let _dbIds = dbIds
         if (!Array.isArray(_dbIds) || _dbIds.length == 0) return false
         else if (typeof dbIds === 'string') { _dbIds = [parseInt(dbIds)] }
         else if (typeof dbIds === 'number') { _dbIds = [dbIds] }
-        return await this.translateTool.change(viewer.model, _dbIds, pos)
+        if (absolute) {
+            return await this.translateTool.changeWorld(viewer.model, _dbIds, pos)
+        }
+        else {
+            return await this.translateTool.change(viewer.model, _dbIds, pos)
+        }
     }
     /**
      * translate AggregateSelection programmatically
      * @param {Object[]} selections 
      * @param {THREE.Vector3} pos 
+     * @param {boolean} absolute if true that set absolute position, default is false
      * @returns {Promise<boolean>}
      * @example
      * let ext = viewer.getExtension('Viewing.Extension.Transform')
      * ext.aggregateTranslate(viewer.getAggregateSelection(),new THREE.Vector3(20,2,2))
      */
-    async aggregateTranslate(selections, pos) {
+    async aggregateTranslate(selections, pos, absolute = false) {
         if (!pos || !(pos instanceof THREE.Vector3)) return false
         if (!Array.isArray(selections) || selections.length == 0) return false
         var b = selections.map(({ model, selection }) => {
             if (!model) return false
             if (!Array.isArray(selection) || selection.length == 0) return false
-            return this.translateTool.change(model, selection, pos)
+            if (absolute) {
+                return this.translateTool.changeWorld(model, selection, pos)
+            }
+            else {
+                return this.translateTool.change(model, selection, pos)
+            }
         });
         var p = await Promise.all(b)
         return p.every(e => e)

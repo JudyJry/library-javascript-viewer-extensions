@@ -9,7 +9,7 @@ export default class TransformTool extends EventsEmitter {
 
         this.active = false
 
-        this._viewer = viewer
+        this.viewer = viewer
 
         this._hitPoint = null
 
@@ -41,7 +41,7 @@ export default class TransformTool extends EventsEmitter {
     createTransformMesh() {
         var material = new THREE.MeshPhongMaterial({ color: 0xff0000 })
 
-        this._viewer.impl.matman().addMaterial(
+        this.viewer.impl.matman().addMaterial(
             'transform-tool-material',
             material,
             true)
@@ -84,7 +84,7 @@ export default class TransformTool extends EventsEmitter {
             })
         }
 
-        this._viewer.impl.sceneUpdated(true)
+        this.viewer.impl.sceneUpdated(true)
     }
     /**
      * Translate dbIds fragment programmatically
@@ -96,30 +96,52 @@ export default class TransformTool extends EventsEmitter {
         const it = model.getInstanceTree()
         const p = dbIds.map(async (root) => {
             let allchild = await ViewerToolkit.getAllDbIds(model, root)
-            allchild.forEach((dbId)=>{
+            allchild.forEach((dbId) => {
                 it.enumNodeFragments(dbId, (fragId) => {
-                    var fragProxy = this._viewer.impl.getFragmentProxy(model, fragId)
+                    var fragProxy = this.viewer.impl.getFragmentProxy(model, fragId)
                     fragProxy.getAnimTransform()
-    
+
                     var position = new THREE.Vector3(
                         pos.x + fragProxy.position.x,
                         pos.y + fragProxy.position.y,
                         pos.z + fragProxy.position.z)
-    
+
                     fragProxy.position.copy(position)
-    
+
                     fragProxy.updateAnimTransform()
                 })
             })
         })
         await Promise.all(p)
-        this._viewer.impl.sceneUpdated(true)
+        this.viewer.impl.sceneUpdated(true)
         return true
     }
 
 
-    changeWorld(model, dbIds, pos) {
+    async changeWorld(model, dbIds, pos) {
+        const it = model.getInstanceTree()
+        const p = dbIds.map(async (root) => {
+            let allchild = await ViewerToolkit.getAllDbIds(model, root)
+            allchild.forEach((dbId) => {
+                var center = ViewerToolkit.getBoundingBox(dbId, model).getCenter()
+                it.enumNodeFragments(dbId, (fragId) => {
+                    var fragProxy = this.viewer.impl.getFragmentProxy(model, fragId)
+                    fragProxy.getAnimTransform()
 
+                    var position = new THREE.Vector3(
+                        pos.x - center.x + fragProxy.position.x,
+                        pos.y - center.y + fragProxy.position.y,
+                        pos.z - center.z + fragProxy.position.z)
+
+                    fragProxy.position.copy(position)
+
+                    fragProxy.updateAnimTransform()
+                })
+            })
+        })
+        await Promise.all(p)
+        this.viewer.impl.sceneUpdated(true)
+        return true
     }
 
     /**
@@ -188,10 +210,10 @@ export default class TransformTool extends EventsEmitter {
 
         this._transformControlTx.addEventListener('change', this.onTxChange)
 
-        this._viewer.addEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
+        this.viewer.addEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
 
         this._selection.fragIdsArray.forEach((fragId) => {
-            var fragProxy = this._viewer.impl.getFragmentProxy(this._selection.model, fragId)
+            var fragProxy = this.viewer.impl.getFragmentProxy(this._selection.model, fragId)
 
             fragProxy.getAnimTransform()
 
@@ -211,9 +233,9 @@ export default class TransformTool extends EventsEmitter {
             this._selectedFragProxyMap = {}
             this._transformControlTx.visible = false
             this._transformControlTx.removeEventListener('change', this.onTxChange)
-            this._viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
+            this.viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
 
-            this._viewer.impl.sceneUpdated(true)
+            this.viewer.impl.sceneUpdated(true)
         }
     }
 
@@ -223,7 +245,7 @@ export default class TransformTool extends EventsEmitter {
      * @returns {{x:number,y:number}}
      */
     /*normalize(screenPoint) {
-        var viewport = this._viewer.navigation.getScreenViewport()
+        var viewport = this.viewer.navigation.getScreenViewport()
         return {
             x: (screenPoint.x - viewport.left) / viewport.width,
             y: (screenPoint.y - viewport.top) / viewport.height
@@ -251,7 +273,7 @@ export default class TransformTool extends EventsEmitter {
     /*_getHitPoint(event) {
         var screenPoint = { x: event.clientX, y: event.clientY }
         var n = this.normalize(screenPoint)
-        var hitPoint = this._viewer.utilities.getHitPoint(n.x, n.y)
+        var hitPoint = this.viewer.utilities.getHitPoint(n.x, n.y)
         return hitPoint
     }*/
 
@@ -273,33 +295,33 @@ export default class TransformTool extends EventsEmitter {
     activate() {
         if (!this.active) {
             this.active = true
-            this._viewer.select([])
-            var bbox = this._viewer.model.getBoundingBox()
+            this.viewer.select([])
+            var bbox = this.viewer.model.getBoundingBox()
 
-            this._viewer.impl.createOverlayScene('TransformToolOverlay')
+            this.viewer.impl.createOverlayScene('TransformToolOverlay')
 
             this._transformControlTx = new THREE.TransformControls(
-                this._viewer.impl.camera,
-                this._viewer.impl.canvas,
+                this.viewer.impl.camera,
+                this.viewer.impl.canvas,
                 "translate")
 
             this._transformControlTx.setSize(bbox.getBoundingSphere().radius * 5)
             this._transformControlTx.visible = false
-            this._viewer.impl.addOverlay('TransformToolOverlay', this._transformControlTx)
+            this.viewer.impl.addOverlay('TransformToolOverlay', this._transformControlTx)
             this._transformMesh = this.createTransformMesh()
             this._transformControlTx.attach(this._transformMesh)
-            this._viewer.addEventListener(Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT, this.onAggregateSelectionChanged)
+            this.viewer.addEventListener(Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT, this.onAggregateSelectionChanged)
         }
     }
 
     deactivate() {
         if (this.active) {
             this.active = false
-            this._viewer.impl.removeOverlay('TransformToolOverlay', this._transformControlTx)
+            this.viewer.impl.removeOverlay('TransformToolOverlay', this._transformControlTx)
             this._transformControlTx.removeEventListener('change', this.onTxChange)
-            this._viewer.impl.removeOverlayScene('TransformToolOverlay')
-            this._viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
-            this._viewer.removeEventListener(Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT, this.onAggregateSelectionChanged)
+            this.viewer.impl.removeOverlayScene('TransformToolOverlay')
+            this.viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
+            this.viewer.removeEventListener(Autodesk.Viewing.AGGREGATE_SELECTION_CHANGED_EVENT, this.onAggregateSelectionChanged)
         }
     }
 
