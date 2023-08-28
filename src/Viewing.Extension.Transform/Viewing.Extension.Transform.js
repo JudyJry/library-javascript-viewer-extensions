@@ -277,7 +277,7 @@ class TransformExtension extends ExtensionBase {
      * rotate dbIds programmatically
      * @param {number[]} dbIds 
      * @param {THREE.Vector3} axis 
-     * @param {number} angle 
+     * @param {number} angle radians
      * @param {boolean | THREE.Vector3} center if true that apply individual center, else if false apply median center, else give a point to apply custom center
      * @returns {Promise<boolean>}
      */
@@ -306,6 +306,44 @@ class TransformExtension extends ExtensionBase {
         else {
             return await this.rotateTool.change(viewer.model, _dbIds, axis, angle, _center)
         }
+    }
+    /**
+     * rotate AggregateSelection programmatically
+     * @param {Object[]} selections 
+     * @param {THREE.Vector3} axis 
+     * @param {number} angle radians
+     * @param {boolean | THREE.Vector3} center if true that apply individual center, else if false apply median center, else give a point to apply custom center
+     * @returns {Promise<boolean>}
+     */
+    async aggregateRotate(selections, axis, angle = 0, center = false) {
+        if (!axis || !(axis instanceof THREE.Vector3)) return false
+        if (!Array.isArray(selections) || selections.length == 0) return false
+        var b = selections.map(async ({ model, selection }) => {
+            if (!model) return false
+            if (!Array.isArray(selection) || selection.length == 0) return false
+
+            var _center = center
+            if (_center === true) {
+                var b = selection.map((dbId) => {
+                    var cen = ViewerToolkit.getBoundingBox(dbId, model).getCenter()
+                    return this.rotateTool.change(model, [dbId], axis, angle, cen)
+                })
+                var p = await Promise.all(b)
+                return p.every(e => e)
+            }
+            else if (_center === false) {
+                _center = selection.reduce((bbox, dbId) => {
+                    bbox.union(ViewerToolkit.getBoundingBox(dbId, model))
+                    return bbox
+                }, new THREE.Box3()).getCenter()
+                return this.rotateTool.change(model, selection, axis, angle, _center)
+            }
+            else {
+                return this.rotateTool.change(model, selection, axis, angle, _center)
+            }
+        });
+        var p = await Promise.all(b)
+        return p.every(e => e)
     }
 }
 

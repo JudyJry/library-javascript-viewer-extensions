@@ -285,7 +285,7 @@ export default class RotateTool extends EventsEmitter {
      * @param {Autodesk.Viewing.Model} model 
      * @param {number[]} dbIds 
      * @param {THREE.Vector3} axis 
-     * @param {number} angle 
+     * @param {number} angle radians
      * @param {THREE.Vector3} center 
      * @returns {Promise<boolean>}
      */
@@ -300,7 +300,7 @@ export default class RotateTool extends EventsEmitter {
                     var fragProxy = this.viewer.impl.getFragmentProxy(model, fragId)
 
                     fragProxy.getAnimTransform()
-                    
+
                     var position = new THREE.Vector3(
                         fragProxy.position.x - center.x,
                         fragProxy.position.y - center.y,
@@ -767,7 +767,9 @@ class RotateControl extends EventsEmitter {
 
         this.viewer.impl.sceneUpdated(true)
 
-        setTimeout(() => { this.engaged = false }, 100)
+        //setTimeout(() => { this.engaged = false }, 100)
+        this.engaged = false
+
     }
 
     /**
