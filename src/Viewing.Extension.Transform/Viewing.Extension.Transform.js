@@ -169,10 +169,12 @@ class TransformExtension extends ExtensionBase {
             case this.ToolState.TRANSLATE:
                 this._comboCtrl.setToolTip(this._txControl.getToolTip())
                 this._comboCtrl.icon.className = this._txControl.icon.className
+                this._panel.toggleState(this._toolState)
                 break;
             case this.ToolState.ROTATE:
                 this._comboCtrl.setToolTip(this._rxControl.getToolTip())
                 this._comboCtrl.icon.className = this._rxControl.icon.className
+                this._panel.toggleState(this._toolState)
                 break;
         }
     }
@@ -374,12 +376,17 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
         this.container.style.width = 260 + 'px'
         this.container.style.height = 240 + 'px'
 
+        //tool
+        this.txTool = this.ext.translateTool
+        this.rxTool = this.ext.rotateTool
+
+        //transform save
         this.selection = null
         this.translation = new THREE.Vector3()
+        this.rotation = new THREE.Vector3()
         this.center = new THREE.Vector3()
-        this.txTool = this.ext.translateTool
-        this.rxTool = this.ext.translateTool
 
+        //control inputs
         this.controls = {
             translation: {
                 x: this.scrollContainer.querySelector('#translate-x'),
@@ -468,14 +475,15 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
     }
     addEvent() {
         var isTranslationAbsolute = false
+
         //txTool
-        this.txTool.on('transform.modelSelected', (selection) => {
+        this.txTool.on('transform.translate.modelSelected', (selection) => {
             this.translation = new THREE.Vector3()
             this.center = this.txTool._transformControlTx.position
             this.setTranslation()
             this.selection = selection
-            this.setVisible(true)
             this.toggleState(ToolState.TRANSLATE)
+            this.setVisible(true)
         })
         const updateTranslation = () => {
             if (isTranslationAbsolute) {
@@ -485,15 +493,16 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
                 this.setTranslation(this.translation)
             }
         }
-        this.txTool.on('transform.translate', (data) => {
+        this.txTool.on('transform.translate.change', (data) => {
             this.center = this.txTool._transformControlTx.position
             this.translation = data.translation
             updateTranslation()
         })
-        this.txTool.on('transform.clearSelection', () => {
+        this.txTool.on('transform.translate.clearSelection', () => {
             this.translation = new THREE.Vector3()
             this.setTranslation()
             this.selection = null
+            this.setVisible(false)
         })
 
         const txInputChange = () => {
@@ -512,7 +521,7 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
                 this.translation = this.getTranslation()
             }
         }
-        this.scrollContainer.querySelectorAll('#translate-table input[type=number]').forEach((txi) => {
+        this._tbodys.translation.querySelectorAll('input[type=number]').forEach((txi) => {
             txi.addEventListener('change', txInputChange)
             txi.addEventListener('keyup', txInputChange)
             txi.addEventListener('input', txInputChange)
@@ -522,15 +531,52 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
             isTranslationAbsolute = event.target.checked
             updateTranslation()
         })
+
         //rxTool
+        this.rxTool.on('transform.rotate.modelSelected', (selection) => {
+            console.log('transform.rotate.modelSelected')
+            this.rotation = new THREE.Vector3()
+            this.setRotation()
+            this.selection = selection
+            this.toggleState(ToolState.ROTATE)
+            this.setVisible(true)
+        })
+        this.rxTool.on('transform.rotate.change', (data) => {
+            console.log(data)
+            //data.model.transform.rotation = data.rotation
+            this.setRotation({
+                x: (data.rotation.x * 180 / Math.PI) % 360,
+                y: (data.rotation.y * 180 / Math.PI) % 360,
+                z: (data.rotation.z * 180 / Math.PI) % 360
+            })
+        })
+        this.rxTool.on('transform.rotate.clearSelection', () => {
+            this.rotation = new THREE.Vector3()
+            this.setRotation()
+            this.selection = null
+            this.setVisible(false)
+        })
+        const rxInputChange = () => {
+            let r = this.getRotation()
+        }
+        this._tbodys.rotation.querySelectorAll('input[type=number]').forEach((rxi) => {
+            rxi.addEventListener('change', rxInputChange)
+            rxi.addEventListener('keyup', rxInputChange)
+            rxi.addEventListener('input', rxInputChange)
+            rxi.addEventListener('paste', rxInputChange)
+        })
 
         //close panel
         this.on('close', () => {
             this.selection = null
             this.translation = new THREE.Vector3()
+            this.rotation = new THREE.Vector3()
+            this.center = new THREE.Vector3()
             this.setTranslation()
+            this.setRotation()
             this.ext._txControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
             this.ext._rxControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
+            this.setVisible(false)
         })
     }
     toggleState(state) {
@@ -566,6 +612,27 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
         this.controls.translation.x.value = pos.x
         this.controls.translation.y.value = pos.y
         this.controls.translation.z.value = pos.z
+    }
+    getRotation() {
+        var x = parseFloat(this.controls.rotation.x.value)
+        var y = parseFloat(this.controls.rotation.y.value)
+        var z = parseFloat(this.controls.rotation.z.value)
+
+        x = isNaN(x) ? 0.0 : x
+        y = isNaN(y) ? 0.0 : y
+        z = isNaN(z) ? 0.0 : z
+
+        //when input is NaN or empty, show value 0
+        this.controls.rotation.x.value = x
+        this.controls.rotation.y.value = y
+        this.controls.rotation.z.value = z
+
+        return new THREE.Vector3(x, y, z)
+    }
+    setRotation(r = new THREE.Vector3(0, 0, 0)) {
+        this.controls.rotation.x.value = r.x
+        this.controls.rotation.y.value = r.y
+        this.controls.rotation.z.value = r.z
     }
 }
 

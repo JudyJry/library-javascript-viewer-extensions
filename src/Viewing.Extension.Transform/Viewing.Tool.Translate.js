@@ -2,7 +2,7 @@ import EventsEmitter from '../components/EventsEmitter'
 import ViewerToolkit from '../components/Viewer.Toolkit'
 import './TransformGizmos'
 
-export default class TransformTool extends EventsEmitter {
+export default class TranslateTool extends EventsEmitter {
     constructor(viewer) {
         super()
         this.keys = {}
@@ -30,9 +30,9 @@ export default class TransformTool extends EventsEmitter {
         this.onCameraChanged = this.onCameraChanged.bind(this)
     }
 
-    getNames() { return ["Viewing.Transform.Tool"] }
+    getNames() { return ["Viewing.Translate.Tool"] }
 
-    getName() { return "Viewing.Transform.Tool" }
+    getName() { return "Viewing.Translate.Tool" }
 
     /**
      * Creates a dummy mesh to attach control to
@@ -78,7 +78,7 @@ export default class TransformTool extends EventsEmitter {
                 fragProxy.updateAnimTransform()
             }
 
-            this.emit('transform.translate', {
+            this.emit('transform.translate.change', {
                 model: this._selection.model,
                 translation: translation
             })
@@ -181,6 +181,7 @@ export default class TransformTool extends EventsEmitter {
             this._hitPoint = selectionBox.getCenter()
 
             this.emit('transform.modelSelected', this._selection)
+            this.emit('transform.translate.modelSelected', this._selection)
 
             this.initializeSelection(this._hitPoint)
         }
@@ -238,6 +239,7 @@ export default class TransformTool extends EventsEmitter {
             this.viewer.impl.sceneUpdated(true)
 
             this.emit('transform.clearSelection')
+            this.emit('transform.translate.clearSelection')
         }
     }
 

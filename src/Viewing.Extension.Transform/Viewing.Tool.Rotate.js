@@ -67,8 +67,7 @@ export default class RotateTool extends EventsEmitter {
         if (event.selections && event.selections.length) {
             var selection = event.selections[0]
             this._selection = selection
-            this.emit('transform.modelSelected', this._selection)
-
+            
             if (this.fullTransform) {
                 this._selection.fragIdsArray = []
                 var fragCount = selection.model.getFragmentList().fragments.fragId2dbId.length
@@ -93,6 +92,9 @@ export default class RotateTool extends EventsEmitter {
             this.viewer.navigation.fitBounds(false, selectionBox.expandByScalar(3), true, true)
             //this.viewer.fitToView(this.selection.dbIdArray)
 
+            this.emit('transform.modelSelected', this._selection)
+            this.emit('transform.rotate.modelSelected', this._selection)
+
         } else {
             this.clearSelection()
         }
@@ -104,6 +106,9 @@ export default class RotateTool extends EventsEmitter {
             this.rotateControl.remove()
             this.rotateControl = null
             this.viewer.impl.sceneUpdated(true)
+
+            this.emit('transform.clearSelection')
+            this.emit('transform.rotate.clearSelection')
         }
     }
 
@@ -271,7 +276,7 @@ export default class RotateTool extends EventsEmitter {
                 var euler = new THREE.Euler()
                 euler.setFromQuaternion(fragProxy.quaternion, 0)
 
-                this.emit('transform.rotate', {
+                this.emit('transform.rotate.change', {
                     rotation: euler,
                     model
                 })
