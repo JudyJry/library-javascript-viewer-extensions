@@ -236,6 +236,8 @@ export default class TransformTool extends EventsEmitter {
             this.viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, this.onCameraChanged)
 
             this.viewer.impl.sceneUpdated(true)
+
+            this.emit('transform.clearSelection')
         }
     }
 

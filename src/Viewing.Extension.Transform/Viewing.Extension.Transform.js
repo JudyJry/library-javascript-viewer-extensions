@@ -1,8 +1,15 @@
+import EventsEmitter from '../components/EventsEmitter'
 import TranslateTool from './Viewing.Tool.Translate'
 import RotateTool from './Viewing.Tool.Rotate'
 
 import ExtensionBase from '../components/Viewer.ExtensionBase'
 import ViewerToolkit from '../components/Viewer.Toolkit'
+
+const ToolState = Object.freeze({
+    NONE: null,
+    TRANSLATE: 'toolbar-translate',
+    ROTATE: 'toolbar-rotate',
+})
 
 class TransformExtension extends ExtensionBase {
     constructor(viewer, options = {}) {
@@ -18,11 +25,9 @@ class TransformExtension extends ExtensionBase {
         this.rotateTool = new RotateTool(viewer)
         this._viewer.toolController.registerTool(this.rotateTool)
 
-        this.ToolState = Object.freeze({
-            NONE: null,
-            TRANSLATE: 'toolbar-translate',
-            ROTATE: 'toolbar-rotate',
-        })
+        this._panel = new TransformPanel(viewer, this)
+
+        this.ToolState = ToolState
         this._toolState = this.ToolState.TRANSLATE
     }
 
@@ -356,6 +361,189 @@ class TransformExtension extends ExtensionBase {
         });
         var p = await Promise.all(b)
         return p.every(e => e)
+    }
+}
+
+class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingPanel) {
+    constructor(viewer, ext, options) {
+        super(viewer.container, 'Transform-Panel', 'TranslatePanel', options)
+        this.viewer = viewer
+        this.ext = ext
+        this.container.style.left = 24 + 'px'
+        this.container.style.bottom = 24 + 'px'
+        this.container.style.width = 260 + 'px'
+        this.container.style.height = 240 + 'px'
+
+        this.selection = null
+        this.translation = new THREE.Vector3()
+        this.center = new THREE.Vector3()
+        this.txTool = this.ext.translateTool
+        this.rxTool = this.ext.translateTool
+
+        this.controls = {
+            translation: {
+                x: this.scrollContainer.querySelector('#translate-x'),
+                y: this.scrollContainer.querySelector('#translate-y'),
+                z: this.scrollContainer.querySelector('#translate-z'),
+                a: this.scrollContainer.querySelector('#translate-absolute'),
+            },
+            rotation: {
+                x: this.scrollContainer.querySelector('#rotate-x'),
+                y: this.scrollContainer.querySelector('#rotate-y'),
+                z: this.scrollContainer.querySelector('#rotate-z'),
+            }
+        }
+        this._tbodys = {
+            translation: this.scrollContainer.querySelector('#translate-table'),
+            rotation: this.scrollContainer.querySelector('#rotate-table')
+        }
+
+        this.addEvent()
+    }
+    initialize() {
+        this.title = this.createTitleBar('Translate');
+        this.title.style = 'height: 1.25em;position: absolute;width: 100%;'
+        this.container.appendChild(this.title);
+        this.initializeMoveHandlers(this.title);
+
+        this.closer = this.createCloseButton();
+        this.container.appendChild(this.closer);
+
+        this.scrollContainer = this.createScrollContainer()
+        this.scrollContainer.style = 'padding-top: 3.46em;padding-bottom: 20px;box-sizing: border-box;'
+        this.container.appendChild(this.scrollContainer);
+
+        this.scrollContainer.innerHTML = `
+            <div class="settings-tabs-tables-container">
+                <table class="adsk-lmv-tftable settings-selected-table settings-table" style="padding: 0.75rem;width:auto;">
+                    <tbody style="display: table; width: 100%;" id="translate-table">
+                        <tr>
+                            <td><label for="translate-x">x</label></td>
+                            <td><input type="number" step="1" id="translate-x" value="0"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td><label for="translate-y">y</label></td>
+                            <td><input type="number" step="1" id="translate-y" value="0"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td><label for="translate-z">z</label></td>
+                            <td><input type="number" step="1" id="translate-z" value="0"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">
+                                <label for="translate-absolute" style="display:inline-block; margin-right:12px;">Absolute</label>
+                                <label class="switch" style="height:auto; pointer-events: auto;"><input type="checkbox" id="translate-absolute"><div class="slider"></div></label>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody style="display: table; width: 100%;" id="rotate-table">
+                        <tr>
+                            <td><label for="rotate-x">x</label></td>
+                            <td><input type="number" step="1" id="rotate-x" value="0"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td><label for="rotate-y">y</label></td>
+                            <td><input type="number" step="1" id="rotate-y" value="0"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td><label for="rotate-z">z</label></td>
+                            <td><input type="number" step="1" id="rotate-z" value="0"></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>`
+
+
+        if (this.options.addFooter) {
+            this.footer = this.createFooter();
+            this.footer.lastElementChild.style.display = 'none'
+            this.container.appendChild(this.footer);
+        }
+    }
+    addEvent() {
+        //txTool
+        this.txTool.on('transform.modelSelected', (selection) => {
+            this.translation = new THREE.Vector3()
+            this.setTranslation()
+            this.selection = selection
+            this.setVisible(true)
+            this.toggleState(ToolState.TRANSLATE)
+        })
+        this.txTool.on('transform.translate', (data) => {
+            this.translation = data.translation
+            this.setTranslation(data.translation)
+        })
+        this.txTool.on('transform.clearSelection', () => {
+            this.translation = new THREE.Vector3()
+            this.setTranslation()
+            this.selection = null
+        })
+
+        const txInputChange = () => {
+            let t = this.getTranslation()
+            let m = this.translation
+            let pos = t.clone().sub(m)
+            this.txTool.change(this.selection.model, this.selection.dbIdArray, pos)
+            let cp = t.clone().add(this.selection.model.offset)
+            this.txTool._transformControlTx.setPosition(cp)
+            this.translation = this.getTranslation()
+        }
+        this.scrollContainer.querySelectorAll('#translate-table input[type=number]').forEach((txi) => {
+            txi.addEventListener('change', txInputChange)
+            txi.addEventListener('keyup', txInputChange)
+            txi.addEventListener('input', txInputChange)
+            txi.addEventListener('paste', txInputChange)
+        })
+        //rxTool
+
+        //close panel
+        this.on('close', () => {
+            this.selection = null
+            this.translation = new THREE.Vector3()
+            this.setTranslation()
+            this.ext._txControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
+            this.ext._rxControl.setState(Autodesk.Viewing.UI.Button.State.INACTIVE)
+        })
+    }
+    toggleState(state) {
+        Object.values(this._tbodys).forEach((tbody) => {
+            tbody.style.display = 'none'
+        })
+        switch (state) {
+            case ToolState.TRANSLATE:
+                this._tbodys.translation.style.display = null
+                break;
+            case ToolState.ROTATE:
+                this._tbodys.rotation.style.display = null
+                break;
+        }
+    }
+    getTranslation() {
+        var x = parseFloat(this.controls.translation.x.value)
+        var y = parseFloat(this.controls.translation.y.value)
+        var z = parseFloat(this.controls.translation.z.value)
+
+        x = isNaN(x) ? 0.0 : x
+        y = isNaN(y) ? 0.0 : y
+        z = isNaN(z) ? 0.0 : z
+
+        //when input is NaN or empty, show value 0
+        this.controls.translation.x.value = x
+        this.controls.translation.y.value = y
+        this.controls.translation.z.value = z
+
+        return new THREE.Vector3(x, y, z)
+    }
+    setTranslation(pos = new THREE.Vector3(0, 0, 0)) {
+        this.controls.translation.x.value = pos.x
+        this.controls.translation.y.value = pos.y
+        this.controls.translation.z.value = pos.z
     }
 }
 

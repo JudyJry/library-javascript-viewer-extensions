@@ -179,7 +179,7 @@ export default class ViewerToolkit {
         return new Promise((resolve) => {
             const alldbId = [];
             if (!rootId) { resolve(alldbId); }
-            if (_it.getChildCount(rootId) == 0) { alldbId.push(rootId); resolve(alldbId); }
+            if (_it.getChildCount(rootId) == 0) { alldbId.push(rootId); resolve(alldbId); return }
             const queue = [];
             queue.push(rootId);
             while (queue.length > 0) {
