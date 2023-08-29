@@ -467,17 +467,28 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
         }
     }
     addEvent() {
+        var isTranslationAbsolute = false
         //txTool
         this.txTool.on('transform.modelSelected', (selection) => {
             this.translation = new THREE.Vector3()
+            this.center = this.txTool._transformControlTx.position
             this.setTranslation()
             this.selection = selection
             this.setVisible(true)
             this.toggleState(ToolState.TRANSLATE)
         })
+        const updateTranslation = () => {
+            if (isTranslationAbsolute) {
+                this.setTranslation(this.center)
+            }
+            else {
+                this.setTranslation(this.translation)
+            }
+        }
         this.txTool.on('transform.translate', (data) => {
+            this.center = this.txTool._transformControlTx.position
             this.translation = data.translation
-            this.setTranslation(data.translation)
+            updateTranslation()
         })
         this.txTool.on('transform.clearSelection', () => {
             this.translation = new THREE.Vector3()
@@ -487,18 +498,29 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
 
         const txInputChange = () => {
             let t = this.getTranslation()
-            let m = this.translation
-            let pos = t.clone().sub(m)
-            this.txTool.change(this.selection.model, this.selection.dbIdArray, pos)
-            let cp = t.clone().add(this.selection.model.offset)
-            this.txTool._transformControlTx.setPosition(cp)
-            this.translation = this.getTranslation()
+
+            if (isTranslationAbsolute) {
+                this.txTool.changeWorld(this.selection.model, this.selection.dbIdArray, t)
+                this.txTool._transformControlTx.setPosition(t)
+                this.translation = this.txTool._transformMesh.position.clone().sub(this.selection.model.offset)
+            }
+            else {
+                let pos = t.clone().sub(this.translation)
+                this.txTool.change(this.selection.model, this.selection.dbIdArray, pos)
+                this.txTool._transformControlTx.setPosition(
+                    t.clone().add(this.selection.model.offset))
+                this.translation = this.getTranslation()
+            }
         }
         this.scrollContainer.querySelectorAll('#translate-table input[type=number]').forEach((txi) => {
             txi.addEventListener('change', txInputChange)
             txi.addEventListener('keyup', txInputChange)
             txi.addEventListener('input', txInputChange)
             txi.addEventListener('paste', txInputChange)
+        })
+        this.controls.translation.a.addEventListener('change', (event) => {
+            isTranslationAbsolute = event.target.checked
+            updateTranslation()
         })
         //rxTool
 
