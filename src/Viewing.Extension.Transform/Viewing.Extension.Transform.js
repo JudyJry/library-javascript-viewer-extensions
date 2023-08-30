@@ -534,7 +534,6 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
 
         //rxTool
         this.rxTool.on('transform.rotate.modelSelected', (selection) => {
-            console.log('transform.rotate.modelSelected')
             this.rotation = new THREE.Vector3()
             this.setRotation()
             this.selection = selection
@@ -542,8 +541,6 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
             this.setVisible(true)
         })
         this.rxTool.on('transform.rotate.change', (data) => {
-            console.log(data)
-            //data.model.transform.rotation = data.rotation
             this.setRotation({
                 x: (data.rotation.x * 180 / Math.PI) % 360,
                 y: (data.rotation.y * 180 / Math.PI) % 360,
@@ -558,6 +555,7 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
         })
         const rxInputChange = () => {
             let r = this.getRotation()
+            this.rxTool.change()
         }
         this._tbodys.rotation.querySelectorAll('input[type=number]').forEach((rxi) => {
             rxi.addEventListener('change', rxInputChange)
