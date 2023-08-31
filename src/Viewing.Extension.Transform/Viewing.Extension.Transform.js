@@ -300,7 +300,7 @@ class TransformExtension extends ExtensionBase {
      * @param {boolean | THREE.Vector3} center if true that apply individual center, else if false apply median center, else give a point to apply custom center
      * @returns {Promise<boolean>}
      */
-    async rotate(dbIds, axis, angle = 0, center = false) {
+    async rotateFromAxisAngle(dbIds, axis, angle = 0, center = false) {
         if (!axis || !(axis instanceof THREE.Vector3)) return false
         let _dbIds = dbIds
         if (!Array.isArray(_dbIds) || _dbIds.length == 0) return false
@@ -310,7 +310,7 @@ class TransformExtension extends ExtensionBase {
         if (_center === true) {
             var b = _dbIds.map((dbId) => {
                 var cen = ViewerToolkit.getBoundingBox(dbId, viewer.model).getCenter()
-                return this.rotateTool.change(viewer.model, [dbId], axis, angle, cen)
+                return this.rotateTool.changeFromAxisAngle(viewer.model, [dbId], axis, angle, cen)
             })
             var p = await Promise.all(b)
             return p.every(e => e)
@@ -320,10 +320,10 @@ class TransformExtension extends ExtensionBase {
                 bbox.union(ViewerToolkit.getBoundingBox(dbId, viewer.model))
                 return bbox
             }, new THREE.Box3()).getCenter()
-            return await this.rotateTool.change(viewer.model, _dbIds, axis, angle, _center)
+            return await this.rotateTool.changeFromAxisAngle(viewer.model, _dbIds, axis, angle, _center)
         }
         else {
-            return await this.rotateTool.change(viewer.model, _dbIds, axis, angle, _center)
+            return await this.rotateTool.changeFromAxisAngle(viewer.model, _dbIds, axis, angle, _center)
         }
     }
     /**
@@ -334,7 +334,7 @@ class TransformExtension extends ExtensionBase {
      * @param {boolean | THREE.Vector3} center if true that apply individual center, else if false apply median center, else give a point to apply custom center
      * @returns {Promise<boolean>}
      */
-    async aggregateRotate(selections, axis, angle = 0, center = false) {
+    async aggregateRotateFromAxisAngle(selections, axis, angle = 0, center = false) {
         if (!axis || !(axis instanceof THREE.Vector3)) return false
         if (!Array.isArray(selections) || selections.length == 0) return false
         var b = selections.map(async ({ model, selection }) => {
@@ -345,7 +345,7 @@ class TransformExtension extends ExtensionBase {
             if (_center === true) {
                 var b = selection.map((dbId) => {
                     var cen = ViewerToolkit.getBoundingBox(dbId, model).getCenter()
-                    return this.rotateTool.change(model, [dbId], axis, angle, cen)
+                    return this.rotateTool.changeFromAxisAngle(model, [dbId], axis, angle, cen)
                 })
                 var p = await Promise.all(b)
                 return p.every(e => e)
@@ -355,10 +355,10 @@ class TransformExtension extends ExtensionBase {
                     bbox.union(ViewerToolkit.getBoundingBox(dbId, model))
                     return bbox
                 }, new THREE.Box3()).getCenter()
-                return this.rotateTool.change(model, selection, axis, angle, _center)
+                return this.rotateTool.changeFromAxisAngle(model, selection, axis, angle, _center)
             }
             else {
-                return this.rotateTool.change(model, selection, axis, angle, _center)
+                return this.rotateTool.changeFromAxisAngle(model, selection, axis, angle, _center)
             }
         });
         var p = await Promise.all(b)
@@ -374,7 +374,7 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
         this.container.style.left = 24 + 'px'
         this.container.style.bottom = 24 + 'px'
         this.container.style.width = 260 + 'px'
-        this.container.style.height = 240 + 'px'
+        this.container.style.height = 236 + 'px'
 
         //tool
         this.txTool = this.ext.translateTool
@@ -397,7 +397,7 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
             rotation: {
                 x: this.scrollContainer.querySelector('#rotate-x'),
                 y: this.scrollContainer.querySelector('#rotate-y'),
-                z: this.scrollContainer.querySelector('#rotate-z'),
+                z: this.scrollContainer.querySelector('#rotate-z')
             }
         }
         this._tbodys = {
@@ -534,18 +534,27 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
 
         //rxTool
         this.rxTool.on('transform.rotate.modelSelected', (selection) => {
-            this.rotation = new THREE.Vector3()
-            this.setRotation()
+            let fragProxy = viewer.model.getFragmentPointer(selection.fragIdsArray[0])
+            fragProxy.getAnimTransform()
+            let euler = new THREE.Euler().setFromQuaternion(fragProxy.quaternion)
+            this.rotation = new THREE.Vector3(
+                (euler.x * 180 / Math.PI) % 360,
+                (euler.y * 180 / Math.PI) % 360,
+                (euler.z * 180 / Math.PI) % 360,
+            )
+            this.setRotation(this.rotation)
             this.selection = selection
             this.toggleState(ToolState.ROTATE)
             this.setVisible(true)
         })
         this.rxTool.on('transform.rotate.change', (data) => {
-            this.setRotation({
+            const angleVector = {
                 x: (data.rotation.x * 180 / Math.PI) % 360,
                 y: (data.rotation.y * 180 / Math.PI) % 360,
                 z: (data.rotation.z * 180 / Math.PI) % 360
-            })
+            }
+            this.setRotation(angleVector)
+            this.rotation = angleVector
         })
         this.rxTool.on('transform.rotate.clearSelection', () => {
             this.rotation = new THREE.Vector3()
@@ -554,8 +563,16 @@ class TransformPanel extends EventsEmitter.Composer(Autodesk.Viewing.UI.DockingP
             this.setVisible(false)
         })
         const rxInputChange = () => {
-            let r = this.getRotation()
-            this.rxTool.change()
+            const angleVector = this.getRotation().sub(this.rotation);
+            const euler = new THREE.Euler(
+                THREE.Math.degToRad(angleVector.x),
+                THREE.Math.degToRad(angleVector.y),
+                THREE.Math.degToRad(angleVector.z),
+                'XYZ'
+            );
+            const center = this.rxTool.rotateControl.center
+            this.rxTool.changeFromEuler(this.selection.model, this.selection.dbIdArray, euler, center)
+            this.rotation = this.getRotation()
         }
         this._tbodys.rotation.querySelectorAll('input[type=number]').forEach((rxi) => {
             rxi.addEventListener('change', rxInputChange)

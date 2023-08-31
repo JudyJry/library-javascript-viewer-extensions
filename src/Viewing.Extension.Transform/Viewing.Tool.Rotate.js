@@ -67,7 +67,7 @@ export default class RotateTool extends EventsEmitter {
         if (event.selections && event.selections.length) {
             var selection = event.selections[0]
             this._selection = selection
-            
+
             if (this.fullTransform) {
                 this._selection.fragIdsArray = []
                 var fragCount = selection.model.getFragmentList().fragments.fragId2dbId.length
@@ -286,17 +286,14 @@ export default class RotateTool extends EventsEmitter {
         })
     }
     /**
-     * Rotate dbIds fragment programmatically
+     * Rotating dbIds fragment using quaternion
      * @param {Autodesk.Viewing.Model} model 
      * @param {number[]} dbIds 
-     * @param {THREE.Vector3} axis 
-     * @param {number} angle radians
+     * @param {THREE.Quaternion} quaternion 
      * @param {THREE.Vector3} center 
      * @returns {Promise<boolean>}
      */
-    async change(model, dbIds, axis, angle, center) {
-        var quaternion = new THREE.Quaternion()
-        quaternion.setFromAxisAngle(axis, angle)
+    async change(model, dbIds, quaternion, center) {
         const it = model.getInstanceTree()
         const p = dbIds.map(async (root) => {
             let allchild = await ViewerToolkit.getAllDbIds(model, root)
@@ -326,6 +323,31 @@ export default class RotateTool extends EventsEmitter {
         await Promise.all(p)
         this.viewer.impl.sceneUpdated(true)
         return true
+    }
+    /**
+     * Rotating dbIds fragment using axis and angle
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number[]} dbIds 
+     * @param {THREE.Vector3} axis 
+     * @param {number} angle radians
+     * @param {THREE.Vector3} center 
+     * @returns {Promise<boolean>}
+     */
+    async changeFromAxisAngle(model, dbIds, axis, angle, center) {
+        var quaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle)
+        return await this.change(model, dbIds, quaternion, center)
+    }
+    /**
+     * Rotating dbIds fragment using euler
+     * @param {Autodesk.Viewing.Model} model 
+     * @param {number[]} dbIds 
+     * @param {THREE.Euler} euler 
+     * @param {THREE.Vector3} center 
+     * @returns {Promise<boolean>}
+     */
+    async changeFromEuler(model, dbIds, euler, center) {
+        var quaternion = new THREE.Quaternion().setFromEuler(euler)
+        return await this.change(model, dbIds, quaternion, center)
     }
 
     /**
