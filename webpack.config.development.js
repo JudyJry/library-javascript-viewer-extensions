@@ -65,8 +65,8 @@ module.exports = {
       './src/Viewing.Extension.VisualReport/Viewing.Extension.VisualReport.js' */
   },
   output: {
-    path: path.resolve(__dirname, './dist'),
-    filename: "[name]/[name].js"
+    path: path.resolve(__dirname, './public/js'),
+    filename: "[name].js"
   },
   module: {
     rules: [
